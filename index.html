@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Buscaminas</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    text-align: center;
+}
+
+#tablero {
+    display: grid;
+    gap: 2px;
+    justify-content: center;
+    margin: 20px auto;
+}
+
+.celda {
+    width: 32px;
+    height: 32px;
+    background: #bdbdbd;
+    border: 1px solid #7b7b7b;
+    font-weight: bold;
+    font-size: 16px;
+    line-height: 32px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.revelada {
+    background: #e0e0e0;
+    cursor: default;
+}
+
+.mina {
+    background: #ff4c4c;
+}
+
+.bandera {
+    color: red;
+}
+
+#panel {
+    margin-top: 10px;
+}
+
+#mensaje {
+    font-size: 18px;
+    margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🧨 Buscaminas LEO</h1>
+
+<div id="panel">
+    Dificultad:
+    <select id="dificultad">
+        <option value="facil">Fácil</option>
+        <option value="medio">Medio</option>
+        <option value="dificil">Difícil</option>
+    </select>
+    <button onclick="iniciarJuego()">Iniciar / Reiniciar</button>
+    <div>⏱️ Tiempo: <span id="tiempo">0</span> s</div>
+</div>
+
+<div id="tablero"></div>
+<div id="mensaje"></div>
+
+<script>
+let FILAS, COLUMNAS, MINAS;
+let tablero = [];
+let visible = [];
+let juegoTerminado = false;
+let timer = null;
+let segundos = 0;
+let iniciado = false;
+let primerClick = true;
+
+
+function configurarDificultad() {
+    const nivel = document.getElementById("dificultad").value;
+
+    if (nivel === "facil") {
+        FILAS = COLUMNAS = 8;
+        MINAS = 10;
+    } else if (nivel === "medio") {
+        FILAS = COLUMNAS = 10;
+        MINAS = 15;
+    } else {
+        FILAS = COLUMNAS = 16;
+        MINAS = 40;
+    }
+}
+
+function iniciarJuego() {
+    configurarDificultad();
+    tablero = [];
+    visible = [];
+    juegoTerminado = false;
+    iniciado = false;
+    segundos = 0;
+
+    clearInterval(timer);
+    document.getElementById("tiempo").textContent = "0";
+    document.getElementById("mensaje").textContent = "";
+
+    for (let f = 0; f < FILAS; f++) {
+        tablero[f] = [];
+        visible[f] = [];
+        for (let c = 0; c < COLUMNAS; c++) {
+            tablero[f][c] = 0;
+            visible[f][c] = { revelada: false, bandera: false };
+        }
+    }
+
+    dibujarTablero();
+    primerClick = true;
+
+}
+
+function colocarMinasSeguras(fSeguro, cSeguro) {
+    let colocadas = 0;
+
+    while (colocadas < MINAS) {
+        let f = Math.floor(Math.random() * FILAS);
+        let c = Math.floor(Math.random() * COLUMNAS);
+
+        // Evitar la celda inicial
+        if (f === fSeguro && c === cSeguro) continue;
+
+        if (tablero[f][c] !== -1) {
+            tablero[f][c] = -1;
+            colocadas++;
+        }
+    }
+}
+
+function iniciarTiempo() {
+    timer = setInterval(() => {
+        segundos++;
+        document.getElementById("tiempo").textContent = segundos;
+    }, 1000);
+}
+
+function colocarMinas() {
+    let minas = 0;
+    while (minas < MINAS) {
+        let f = Math.floor(Math.random() * FILAS);
+        let c = Math.floor(Math.random() * COLUMNAS);
+        if (tablero[f][c] !== -1) {
+            tablero[f][c] = -1;
+            minas++;
+        }
+    }
+}
+
+function contarMinas() {
+    for (let f = 0; f < FILAS; f++) {
+        for (let c = 0; c < COLUMNAS; c++) {
+            if (tablero[f][c] === -1) continue;
+            let count = 0;
+            for (let i = f - 1; i <= f + 1; i++) {
+                for (let j = c - 1; j <= c + 1; j++) {
+                    if (i >= 0 && i < FILAS && j >= 0 && j < COLUMNAS) {
+                        if (tablero[i][j] === -1) count++;
+                    }
+                }
+            }
+            tablero[f][c] = count;
+        }
+    }
+}
+
+function dibujarTablero() {
+    const contenedor = document.getElementById("tablero");
+    contenedor.innerHTML = "";
+    contenedor.style.gridTemplateColumns = `repeat(${COLUMNAS}, 32px)`;
+
+    for (let f = 0; f < FILAS; f++) {
+        for (let c = 0; c < COLUMNAS; c++) {
+            const celda = document.createElement("div");
+            celda.className = "celda";
+
+            if (visible[f][c].revelada) {
+                celda.classList.add("revelada");
+                if (tablero[f][c] === -1) {
+                    celda.textContent = "💣";
+                    celda.classList.add("mina");
+                } else if (tablero[f][c] > 0) {
+                    celda.textContent = tablero[f][c];
+                }
+            } else if (visible[f][c].bandera) {
+                celda.textContent = "🚩";
+                celda.classList.add("bandera");
+            }
+
+            celda.onclick = () => revelarCelda(f, c);
+            celda.oncontextmenu = (e) => {
+                e.preventDefault();
+                ponerBandera(f, c);
+            };
+            celda.ondblclick = () => dobleClickCelda(f, c);
+
+            contenedor.appendChild(celda);
+        }
+    }
+}
+
+function revelarCelda(f, c) {
+    if (juegoTerminado || visible[f][c].bandera || visible[f][c].revelada) return;
+
+    if (primerClick) {
+    colocarMinasSeguras(f, c);
+    contarMinas();
+    primerClick = false;
+}
+
+    if (!iniciado) {
+        iniciarTiempo();
+        iniciado = true;
+    }
+
+    visible[f][c].revelada = true;
+
+    if (tablero[f][c] === -1) {
+        juegoTerminado = true;
+        clearInterval(timer);
+        revelarTodo();
+        document.getElementById("mensaje").textContent = "💥 Perdiste";
+        return;
+    }
+
+    if (tablero[f][c] === 0) {
+        for (let i = f - 1; i <= f + 1; i++) {
+            for (let j = c - 1; j <= c + 1; j++) {
+                if (i >= 0 && i < FILAS && j >= 0 && j < COLUMNAS) {
+                    revelarCelda(i, j);
+                }
+            }
+        }
+    }
+
+    verificarVictoria();
+    dibujarTablero();
+}
+
+function dobleClickCelda(f, c) {
+    if (juegoTerminado) return;
+    if (!visible[f][c].revelada) return;
+    if (tablero[f][c] <= 0) return;
+
+    let banderas = 0;
+
+    // Contar banderas alrededor
+    for (let i = f - 1; i <= f + 1; i++) {
+        for (let j = c - 1; j <= c + 1; j++) {
+            if (i >= 0 && i < FILAS && j >= 0 && j < COLUMNAS) {
+                if (visible[i][j].bandera) {
+                    banderas++;
+                }
+            }
+        }
+    }
+
+    // Si el número coincide con las banderas
+    if (banderas === tablero[f][c]) {
+        for (let i = f - 1; i <= f + 1; i++) {
+            for (let j = c - 1; j <= c + 1; j++) {
+                if (i >= 0 && i < FILAS && j >= 0 && j < COLUMNAS) {
+                    if (!visible[i][j].bandera && !visible[i][j].revelada) {
+                        revelarCelda(i, j);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+function ponerBandera(f, c) {
+    if (juegoTerminado || visible[f][c].revelada) return;
+    visible[f][c].bandera = !visible[f][c].bandera;
+    dibujarTablero();
+}
+
+function revelarTodo() {
+    for (let f = 0; f < FILAS; f++) {
+        for (let c = 0; c < COLUMNAS; c++) {
+            visible[f][c].revelada = true;
+        }
+    }
+    dibujarTablero();
+}
+
+function verificarVictoria() {
+    for (let f = 0; f < FILAS; f++) {
+        for (let c = 0; c < COLUMNAS; c++) {
+            if (tablero[f][c] !== -1 && !visible[f][c].revelada) {
+                return;
+            }
+        }
+    }
+    juegoTerminado = true;
+    clearInterval(timer);
+    document.getElementById("mensaje").textContent =
+        `🎉 ¡Ganaste en ${segundos} segundos!`;
+}
+
+iniciarJuego();
+</script>
+
+</body>
+</html>
