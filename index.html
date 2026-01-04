@@ -51,6 +51,113 @@ body {
     font-size: 18px;
     margin-top: 10px;
 }
+
+#banderasRestantes {
+    font-size: 20px;
+}
+
+#info {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 10px;
+}
+
+.info-item {
+    background: #ffffff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 🔽 NUEVO: estilos compartidos para controles */
+.controles {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.control {
+    padding: 8px 14px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 1px solid #888;
+    background: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.control:hover {
+    background: #f0f0f0;
+}
+
+select.control {
+    appearance: none;
+}
+
+/* Indicador de dificultad */
+#dificultad-activa {
+    margin: 10px auto;
+    width: fit-content;
+}
+
+/* Colores suaves por dificultad */
+.dificultad.facil {
+    border: 2px solid #6fcf97;
+    color: #2f8f5b;
+}
+
+.dificultad.medio {
+    border: 2px solid #f2c94c;
+    color: #b58b00;
+}
+
+.dificultad.dificil {
+    border: 2px solid #eb5757;
+    color: #a82828;
+}
+
+#btnDificultad {
+    border: 2px solid #ff4c4c;
+    background: #ffffff;
+    cursor: pointer;
+}
+
+#btnDificultad:hover {
+    background: #ffecec;
+}
+
+#dificultad {
+    display: none;
+}
+
+.boton-dificultad {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    border: none;
+    cursor: pointer;
+    color: white;
+}
+
+.facil {
+    background-color: #2ecc71; /* verde */
+}
+
+.medio {
+    background-color: #f1c40f; /* amarillo */
+    color: #333;
+}
+
+.dificil {
+    background-color: #e74c3c; /* rojo */
+}
+
 </style>
 </head>
 
@@ -59,14 +166,33 @@ body {
 <h1>🧨 Buscaminas LEO</h1>
 
 <div id="panel">
-    Dificultad:
-    <select id="dificultad">
-        <option value="facil">Fácil</option>
-        <option value="medio">Medio</option>
-        <option value="dificil">Difícil</option>
-    </select>
-    <button onclick="iniciarJuego()">Iniciar / Reiniciar</button>
-    <div>⏱️ Tiempo: <span id="tiempo">0</span> s</div>
+
+    <div id="info">
+    <div class="info-item">⏱️ <span id="tiempo">0</span> s</div>
+    <div class="info-item">💣 Minas: <span id="minasTotales">0</span></div>
+    <div class="info-item">🚩 Restantes: <span id="banderasRestantes">0</span></div>
+    <div class="info-item">
+    🏆 Récord: <span id="record">--</span> s
+    </div>
+
+    <!-- NUEVO: indicador de dificultad -->
+    <button id="botonDificultad" class="boton-dificultad" onclick="cambiarDificultad()">
+    🎯 Fácil
+    </button>
+
+    </div>
+
+    <!-- 🔽 CONTROLES UNIFICADOS -->
+    <div class="controles">
+        <select id="dificultad">
+            <option value="facil">Fácil</option>
+            <option value="medio">Medio</option>
+            <option value="dificil">Difícil</option>
+        </select>
+
+        <button class="control" onclick="iniciarJuego()">🎮 Nuevo juego</button>
+    </div>
+
 </div>
 
 <div id="tablero"></div>
@@ -81,23 +207,47 @@ let timer = null;
 let segundos = 0;
 let iniciado = false;
 let primerClick = true;
+const dificultades = ["facil", "medio", "dificil"];
 
-
+// Configura dificultad
 function configurarDificultad() {
     const nivel = document.getElementById("dificultad").value;
+    if (nivel === "facil") { FILAS = COLUMNAS = 8; MINAS = 10; }
+    else if (nivel === "medio") { FILAS = COLUMNAS = 10; MINAS = 15; }
+    else { FILAS = COLUMNAS = 16; MINAS = 40; }
+}
+
+function cambiarDificultad() {
+    const select = document.getElementById("dificultad");
+    let actual = select.value;
+
+    let indice = dificultades.indexOf(actual);
+    let siguiente = (indice + 1) % dificultades.length;
+
+    select.value = dificultades[siguiente];
+
+    iniciarJuego(); // reinicia con nueva dificultad
+}
+
+function actualizarBotonDificultad() {
+    const boton = document.getElementById("botonDificultad");
+    const nivel = document.getElementById("dificultad").value;
+
+    boton.classList.remove("facil", "medio", "dificil");
 
     if (nivel === "facil") {
-        FILAS = COLUMNAS = 8;
-        MINAS = 10;
+        boton.textContent = "🎯 Fácil";
+        boton.classList.add("facil");
     } else if (nivel === "medio") {
-        FILAS = COLUMNAS = 10;
-        MINAS = 15;
+        boton.textContent = "🎯 Medio";
+        boton.classList.add("medio");
     } else {
-        FILAS = COLUMNAS = 16;
-        MINAS = 40;
+        boton.textContent = "🎯 Difícil";
+        boton.classList.add("dificil");
     }
 }
 
+// Inicia juego
 function iniciarJuego() {
     configurarDificultad();
     tablero = [];
@@ -105,6 +255,7 @@ function iniciarJuego() {
     juegoTerminado = false;
     iniciado = false;
     segundos = 0;
+    primerClick = true;
 
     clearInterval(timer);
     document.getElementById("tiempo").textContent = "0";
@@ -120,20 +271,19 @@ function iniciarJuego() {
     }
 
     dibujarTablero();
-    primerClick = true;
+    actualizarContadores();
+    actualizarBotonDificultad();
+    mostrarRecord();
 
 }
 
+// Coloca minas de forma segura para el primer click
 function colocarMinasSeguras(fSeguro, cSeguro) {
     let colocadas = 0;
-
     while (colocadas < MINAS) {
         let f = Math.floor(Math.random() * FILAS);
         let c = Math.floor(Math.random() * COLUMNAS);
-
-        // Evitar la celda inicial
         if (f === fSeguro && c === cSeguro) continue;
-
         if (tablero[f][c] !== -1) {
             tablero[f][c] = -1;
             colocadas++;
@@ -141,6 +291,7 @@ function colocarMinasSeguras(fSeguro, cSeguro) {
     }
 }
 
+// Inicia tiempo
 function iniciarTiempo() {
     timer = setInterval(() => {
         segundos++;
@@ -148,18 +299,7 @@ function iniciarTiempo() {
     }, 1000);
 }
 
-function colocarMinas() {
-    let minas = 0;
-    while (minas < MINAS) {
-        let f = Math.floor(Math.random() * FILAS);
-        let c = Math.floor(Math.random() * COLUMNAS);
-        if (tablero[f][c] !== -1) {
-            tablero[f][c] = -1;
-            minas++;
-        }
-    }
-}
-
+// Cuenta minas alrededor de cada celda
 function contarMinas() {
     for (let f = 0; f < FILAS; f++) {
         for (let c = 0; c < COLUMNAS; c++) {
@@ -177,6 +317,7 @@ function contarMinas() {
     }
 }
 
+// Dibuja tablero en pantalla
 function dibujarTablero() {
     const contenedor = document.getElementById("tablero");
     contenedor.innerHTML = "";
@@ -201,10 +342,7 @@ function dibujarTablero() {
             }
 
             celda.onclick = () => revelarCelda(f, c);
-            celda.oncontextmenu = (e) => {
-                e.preventDefault();
-                ponerBandera(f, c);
-            };
+            celda.oncontextmenu = (e) => { e.preventDefault(); ponerBandera(f, c); };
             celda.ondblclick = () => dobleClickCelda(f, c);
 
             contenedor.appendChild(celda);
@@ -212,19 +350,17 @@ function dibujarTablero() {
     }
 }
 
+// Revela celda
 function revelarCelda(f, c) {
     if (juegoTerminado || visible[f][c].bandera || visible[f][c].revelada) return;
 
     if (primerClick) {
-    colocarMinasSeguras(f, c);
-    contarMinas();
-    primerClick = false;
-}
-
-    if (!iniciado) {
-        iniciarTiempo();
-        iniciado = true;
+        colocarMinasSeguras(f, c);
+        contarMinas();
+        primerClick = false;
     }
+
+    if (!iniciado) { iniciarTiempo(); iniciado = true; }
 
     visible[f][c].revelada = true;
 
@@ -250,25 +386,19 @@ function revelarCelda(f, c) {
     dibujarTablero();
 }
 
+// Doble click para revelar alrededor
 function dobleClickCelda(f, c) {
-    if (juegoTerminado) return;
-    if (!visible[f][c].revelada) return;
-    if (tablero[f][c] <= 0) return;
+    if (juegoTerminado || !visible[f][c].revelada || tablero[f][c] <= 0) return;
 
     let banderas = 0;
-
-    // Contar banderas alrededor
     for (let i = f - 1; i <= f + 1; i++) {
         for (let j = c - 1; j <= c + 1; j++) {
             if (i >= 0 && i < FILAS && j >= 0 && j < COLUMNAS) {
-                if (visible[i][j].bandera) {
-                    banderas++;
-                }
+                if (visible[i][j].bandera) banderas++;
             }
         }
     }
 
-    // Si el número coincide con las banderas
     if (banderas === tablero[f][c]) {
         for (let i = f - 1; i <= f + 1; i++) {
             for (let j = c - 1; j <= c + 1; j++) {
@@ -282,13 +412,41 @@ function dobleClickCelda(f, c) {
     }
 }
 
-
+// Poner/quitar bandera
 function ponerBandera(f, c) {
     if (juegoTerminado || visible[f][c].revelada) return;
     visible[f][c].bandera = !visible[f][c].bandera;
+    actualizarContadores(); // <- actualizar cada cambio de bandera
     dibujarTablero();
 }
 
+// Función que actualiza contadores en pantalla
+function actualizarContadores() {
+    document.getElementById("minasTotales").textContent = MINAS;
+
+    let banderasUsadas = 0;
+    for (let f = 0; f < FILAS; f++) {
+        for (let c = 0; c < COLUMNAS; c++) {
+            if (visible[f][c].bandera) {
+                banderasUsadas++;
+            }
+        }
+    }
+
+    const restantes = MINAS - banderasUsadas;
+    const spanRestantes = document.getElementById("banderasRestantes");
+
+    spanRestantes.textContent = restantes;
+
+    // ⚠️ Aviso visual si se pasa
+    if (restantes < 0) {
+        spanRestantes.style.color = "red";
+    } else {
+        spanRestantes.style.color = "black";
+    }
+}
+
+// Revela todo al perder
 function revelarTodo() {
     for (let f = 0; f < FILAS; f++) {
         for (let c = 0; c < COLUMNAS; c++) {
@@ -298,18 +456,53 @@ function revelarTodo() {
     dibujarTablero();
 }
 
+function guardarRecord(tiempo) {
+    const dificultad = document.getElementById("dificultad").value;
+
+    // Leer records existentes
+    let records = JSON.parse(localStorage.getItem("buscaminasRecords")) || {};
+
+    // Si no hay record o el tiempo es mejor
+    if (!records[dificultad] || tiempo < records[dificultad]) {
+        records[dificultad] = tiempo;
+        localStorage.setItem("buscaminasRecords", JSON.stringify(records));
+    }
+}
+
+// Verifica si ganó
 function verificarVictoria() {
     for (let f = 0; f < FILAS; f++) {
         for (let c = 0; c < COLUMNAS; c++) {
-            if (tablero[f][c] !== -1 && !visible[f][c].revelada) {
-                return;
-            }
+            if (tablero[f][c] !== -1 && !visible[f][c].revelada) return;
         }
     }
     juegoTerminado = true;
     clearInterval(timer);
-    document.getElementById("mensaje").textContent =
-        `🎉 ¡Ganaste en ${segundos} segundos!`;
+
+    guardarRecord(segundos); // 🏆 GUARDAR RECORD
+
+    document.getElementById("mensaje").textContent = `🎉 ¡Ganaste en ${segundos} segundos!`;
+}
+
+function obtenerRecord(dificultad) {
+    const data = localStorage.getItem("buscaminasRecords");
+
+    if (!data) return null;
+
+    const records = JSON.parse(data);
+    return records[dificultad] ?? null;
+}
+
+function mostrarRecord() {
+    const dificultad = document.getElementById("dificultad").value;
+    const record = obtenerRecord(dificultad);
+    const span = document.getElementById("record");
+
+    if (record === null) {
+        span.textContent = "--";
+    } else {
+        span.textContent = record;
+    }
 }
 
 iniciarJuego();
